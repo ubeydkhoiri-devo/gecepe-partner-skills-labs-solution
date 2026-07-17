@@ -1,0 +1,80 @@
+# Create Instance
+
+gcloud bigtable instances create ecommerce-recommendations \
+--display-name="Ecommerce Recommendations" \
+--cluster-config=id=ecommerce-recommendations-c1,zone=us-central1-a
+
+# Update instance cluster config
+
+gcloud bigtable clusters update ecommerce-recommendations-c1 \
+--instance=ecommerce-recommendations \
+--autoscaling-min-nodes=1 \
+--autoscaling-max-nodes=5 \
+--autoscaling-cpu-target=60
+
+# Create config table
+
+echo project = `gcloud config get-value project` \
+>> ~/.cbtrc
+echo instance = ecommerce-recommendations \
+>> ~/.cbtrc
+
+# Create table SessionHistory
+
+cbt createtable SessionHistory
+cbt createfamily SessionHistory Engagements
+cbt createfamily SessionHistory Sales
+
+# Create bucket
+
+export PROJECT_ID=$(gcloud config get-value project)
+gcloud storage buckets create gs://$PROJECT_ID --location=US
+
+# Create job dataflow
+
+gcloud services disable dataflow.googleapis.com
+gcloud services enable dataflow.googleapis.com
+
+job-name: import-sessions
+template: SequenceFile Files on Cloud Storage to Cloud Bigtable
+
+project-id: <PROJECT_ID>
+instance: ecommerce-recommendations
+table: SessionHistory
+source: spls/gsp380/retail-engagements-sales-00000-of-00001
+required parameters: <PROJECT_ID>/temp
+
+# Query
+
+cbt lookup SessionHistory \
+red3016#1638940844357
+
+# Create table PersonalizedProducts
+
+cbt createtable PersonalizedProducts
+cbt createfamily PersonalizedProducts Recommendations
+
+# Create job
+
+job-name: import-recommendations
+template: SequenceFile Files on Cloud Storage to Cloud Bigtable
+
+project-id: <PROJECT_ID>
+instance: ecommerce-recommendations
+table: PersonalizedProducts
+source: spls/gsp380/retail-recommendations-00000-of-00001
+required parameters: <PROJECT_ID>/temp
+
+cbt lookup PersonalizedProducts green4467
+
+
+# delete resources
+
+cbt deletetable SessionHistory
+cbt deletetable PersonalizedProducts
+cbt deletetable PersonalizedProducts_7_restored
+gcloud bigtable backups delete PersonalizedProducts_7 \
+--instance=ecommerce-recommendations \
+--cluster=ecommerce-recommendations-c1
+
+gcloud bigtable instances delete ecommerce-recommendations

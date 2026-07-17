@@ -1,0 +1,57 @@
+gcloud config set compute/zone us-east4-b
+export ZONE=us-east4-b
+gcloud config set project qwiklabs-gcp-03-9c197cded03d
+
+# task 1 
+gcloud iam roles create orca_storage_editor_192 --project=qwiklabs-gcp-03-9c197cded03d \
+--title="Orca Storage Editor 192" --description="Orca Storage Editor Custom Role." \
+--permissions="storage.buckets.get,storage.objects.get,storage.objects.list,storage.objects.update,storage.objects.create" --stage=ALPHA
+
+# task 2
+gcloud iam service-accounts create orca-private-cluster-386-sa \
+--description="Orca Private Cluster Service Account" \
+--display-name="Orca Private Cluster"
+
+# task 3
+gcloud projects add-iam-policy-binding qwiklabs-gcp-03-9c197cded03d \
+--member="serviceAccount:orca-private-cluster-386-sa@qwiklabs-gcp-03-9c197cded03d.iam.gserviceaccount.com" \
+--role="roles/monitoring.viewer"
+
+gcloud projects add-iam-policy-binding qwiklabs-gcp-03-9c197cded03d \
+--member="serviceAccount:orca-private-cluster-386-sa@qwiklabs-gcp-03-9c197cded03d.iam.gserviceaccount.com" \
+--role="roles/monitoring.metricWriter"
+
+gcloud projects add-iam-policy-binding qwiklabs-gcp-03-9c197cded03d \
+--member="serviceAccount:orca-private-cluster-386-sa@qwiklabs-gcp-03-9c197cded03d.iam.gserviceaccount.com" \
+--role="roles/logging.logWriter"
+
+gcloud projects add-iam-policy-binding qwiklabs-gcp-03-9c197cded03d \
+--member="serviceAccount:orca-private-cluster-386-sa@qwiklabs-gcp-03-9c197cded03d.iam.gserviceaccount.com" \
+--role="projects/qwiklabs-gcp-03-9c197cded03d/roles/orca_storage_editor_192"
+
+# task 4
+JUMPHOST_IP=$(gcloud compute instances describe orca-jumphost \
+--zone=$ZONE \
+--format="get(networkInterfaces[0].networkIP)")
+
+gcloud container clusters create orca-cluster-935 \
+--enable-master-authorized-networks \
+--enable-ip-alias \
+--enable-private-nodes \
+--enable-private-endpoint \
+--master-authorized-networks $JUMPHOST_IP/32
+--network=orca-build-vpc \
+--subnetwork=orca-build-subnet \
+--service-account=orca-private-cluster-386-sa@qwiklabs-gcp-03-9c197cded03d.iam.gserviceaccount.com
+
+# task 5
+gcloud config set compute/zone us-east4-b
+export ZONE=us-east4-b
+gcloud config set project qwiklabs-gcp-03-9c197cded03d
+
+gcloud container clusters get-credentials orca-cluster-935 \
+--zone=$ZONE
+
+sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
+
+kubectl create deployment hello-server --image=gcr.io/google-samples/hello-app:1.0
