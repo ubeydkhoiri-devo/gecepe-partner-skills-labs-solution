@@ -36,8 +36,6 @@ while : ; do
     sleep 15
 done
 
-curl -L "https://drive.google.com/uc?export=download&id=1IxJMjqAJ-FVKWOdg2HnJ79wY7BBlbjbJ" -o translate-v1.zip
-
 curl -s -X POST "https://apigee.googleapis.com/v1/organizations/$PROJECT_ID/apis?action=import&name=translate-v1" \
   -H "Authorization: Bearer $(gcloud auth print-access-token)" \
   -H "Content-Type: application/octet-stream" \
